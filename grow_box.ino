@@ -1,13 +1,15 @@
 #include <TM1638.h>
 TM1638 module(2, 3, 4);     //(dio, clk, stb) pins
 
+//подразумевается, что датчики стоят параллельно помпам
+//чтобы каждая помпа имела свою обратную связь(ОС)
 #define PUMP_PIN 45         //подключение помп с пина
 #define PUMP_QUAN 1         //кол-во помп
 #define SWITCH_LEVEL 1      //уровень управления реле 0/1
 
 #define SENSOR_HMDT_PIN 0   //Dry: [520 430] Wet: [430 350] Water: [350 260] (sens v1.0)
 #define SENSOR_HMDT_QUAN PUMP_QUAN
-
+//----------------------------------------------------------------------------------------------
 
 struct {
   byte btn1 = 1;
@@ -44,9 +46,11 @@ unsigned int to_wait_flow_water = 10 * 1000;    //ms, ожидание теку�
 
 byte time_refresh_disp = 2;   //sec, обновление дисплея через...
 long last_refresh_disp = 0;   //sec, последнее обновление
+bool disp_on = true;
+byte disp_mode = 0;
+byte disp_sens = 0;
 
-
-//преобразование аналоговой величины с емкостного датчика влажности (sens v1.2)
+//преобразование аналоговой величины с емкостного датчика влажности (sens v1.2) в % влажности
 byte read_hmdt(int x) {
   int res = x * (-0.257) + 163.452; //kx+b, где k=-0.257 b=163.452  (эксперементально 246=100% 636=0%)
   return (res > 100) ? 100 : (res < 0) ? 0 : res;
@@ -71,20 +75,21 @@ void setup() {
   }
 
   module.clearDisplay();
+  module.setLED(1, disp_mode);
 }
 
 void loop() {
-  
+
   //обойдем помпы (точнее показания с датчиков)
   for (byte i = 0; i < PUMP_QUAN; i++) {
     byte hmdt = read_hmdt(analogRead(pumps[i].sens_pin));
 
     if (pumps[i].is_active) {
       if (abs(millis() - pumps[i].start_pumping) > time_pumping) {
-        Serial.print("выкл -- ");
         pumps[i].start_pumping = millis();
         pumps[i].is_active = false;
         digitalWrite(pumps[i].pin, !SWITCH_LEVEL);
+        Serial.print("выкл -- ");
       }
     }
 
@@ -105,15 +110,40 @@ void loop() {
     Serial.print(" -- ");
     Serial.print(pumps[i].start_pumping);
     Serial.print(" -- " + String(millis()) + "ms");
-
-    if (abs(last_refresh_disp -  millis() / 1000) > time_refresh_disp) {
-      last_refresh_disp = millis() / 1000;
-
-      module.clearDisplay();
-      module.setDisplayToString("d" + String(i + 1) + "  " + String(hmdt));
-    }
-
   }
+
+  //обработка кнопок
+  byte curr_btn = module.getButtons();
+  //вкл/выкл дисплея
+  if (curr_btn == mdl.btn8) {
+    disp_on = !disp_on;
+    module.setLED(!disp_on, mdl.led8);    //если дисплей выкл - то светодиод вкл
+  }
+  //изменение/выбор отображения на дисплее
+  if (curr_btn == mdl.btn1) {
+    module.setLED(0, disp_mode);
+    disp_mode = (++disp_mode > 1) ? 0 : disp_mode++;
+    module.setLED(1, disp_mode);
+  }
+
+  //обновление дисплея
+  if (abs(last_refresh_disp -  millis()) > time_refresh_disp * 1000) {
+    last_refresh_disp = millis() / 1000;
+    if (disp_on) {
+      if (disp_mode == 0) {
+        byte hmdt = read_hmdt(analogRead(pumps[disp_sens].sens_pin));
+        module.clearDisplay();
+        module.setDisplayToString("d" + String(disp_sens + 1) + "  " + String(hmdt));
+        disp_sens = (++disp_sens > sizeof(pumps) / sizeof(*pumps) - 1) ? 0 : disp_sens++;
+      }
+      if (disp_mode == 1) {
+
+      }
+    } else {
+      module.clearDisplay();
+    }
+  }
+
   Serial.println(" ");
 
   delay(500);
