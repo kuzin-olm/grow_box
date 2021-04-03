@@ -27,28 +27,94 @@ struct {
   byte led6 = 5;
   byte led7 = 6;
   byte led8 = 7;
-} mdl;
+} mdl;  //адреса кнопок и светодиодов
 
 struct Pump {
-  byte pin;
-  byte sens_pin;
-  bool is_active = false;
-  long start_pumping = 0;
-  byte hmdt_trigger = 60;
+  byte pin;                   //пин, на котором помпа
+  byte sens_pin;              //пин, на котором датчик (ОС от помпы)
+  bool is_active = false;     //текущее состояние
+  long start_pumping = 0;     //ms, последнее включение
+  byte hmdt_trigger = 60;     //%, уровень влажность для вкл/выкл
 };
 Pump pumps[PUMP_QUAN];
 
 
-unsigned int time_pumping = 2 * 1000;
-unsigned int to_wait_flow_water = 10 * 1000;
+unsigned int time_pumping = 2 * 1000;           //ms, время работы помпы
+unsigned int to_wait_flow_water = 10 * 1000;    //ms, ожидание текучести воды в горшках
+
+byte time_refresh_disp = 2;   //sec, обновление дисплея через...
+long last_refresh_disp = 0;   //sec, последнее обновление
+
+
+//преобразование аналоговой величины с емкостного датчика влажности (sens v1.2)
+byte read_hmdt(int x) {
+  int res = x * (-0.257) + 163.452; //kx+b, где k=-0.257 b=163.452  (эксперементально 246=100% 636=0%)
+  return (res > 100) ? 100 : (res < 0) ? 0 : res;
+}
+
 
 
 void setup() {
-  
+  Serial.begin(9600);
+
+  //init помп
+  for (byte i = 0; i < PUMP_QUAN; i++) {
+    pumps[i].pin = PUMP_PIN + i;
+    pinMode(pumps[i].pin, OUTPUT);
+    digitalWrite(pumps[i].pin, !SWITCH_LEVEL);    //от греха выключим
+  }
+
+  //init датчиков
+  for (byte i = 0; i < SENSOR_HMDT_QUAN; i++) {
+    pumps[i].sens_pin = SENSOR_HMDT_PIN + i;
+    pinMode(pumps[i].sens_pin, INPUT);
+  }
+
+  module.clearDisplay();
 }
 
 void loop() {
   
+  //обойдем помпы (точнее показания с датчиков)
+  for (byte i = 0; i < PUMP_QUAN; i++) {
+    byte hmdt = read_hmdt(analogRead(pumps[i].sens_pin));
+
+    if (pumps[i].is_active) {
+      if (abs(millis() - pumps[i].start_pumping) > time_pumping) {
+        Serial.print("выкл -- ");
+        pumps[i].start_pumping = millis();
+        pumps[i].is_active = false;
+        digitalWrite(pumps[i].pin, !SWITCH_LEVEL);
+      }
+    }
+
+    if ((hmdt < pumps[i].hmdt_trigger) & (!pumps[i].is_active)) {
+      if (abs(millis() - pumps[i].start_pumping) > to_wait_flow_water) {
+        pumps[i].start_pumping = millis();
+        pumps[i].is_active = true;
+        digitalWrite(pumps[i].pin, SWITCH_LEVEL);
+        Serial.print("вкл -- ");
+      }
+    }
+
+    Serial.print(analogRead(pumps[i].sens_pin));
+    Serial.print(" -- ");
+    Serial.print(hmdt);
+    Serial.print("% -- pupm [" + String(i) + "] is active?: ");
+    Serial.print(pumps[i].is_active);
+    Serial.print(" -- ");
+    Serial.print(pumps[i].start_pumping);
+    Serial.print(" -- " + String(millis()) + "ms");
+
+    if (abs(last_refresh_disp -  millis() / 1000) > time_refresh_disp) {
+      last_refresh_disp = millis() / 1000;
+
+      module.clearDisplay();
+      module.setDisplayToString("d" + String(i + 1) + "  " + String(hmdt));
+    }
+
+  }
+  Serial.println(" ");
 
   delay(500);
 }
