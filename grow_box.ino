@@ -39,11 +39,12 @@ struct {
 } mdl;  //адреса кнопок и светодиодов
 
 struct Pump {
-  byte pin;                   //пин, на котором помпа
-  byte sens_pin;              //пин, на котором датчик (ОС от помпы)
-  bool is_active = false;     //текущее состояние
-  long start_pumping = 0;     //ms, последнее включение
-  byte hmdt_trigger = 60;     //%, уровень влажность для вкл/выкл
+  byte pin;                     //пин, на котором помпа
+  byte sens_pin;                //пин, на котором датчик (ОС от помпы)
+  bool is_active = false;       //текущее состояние
+  long start_pumping = 0;       //ms, последнее включение
+  byte hmdt_trigger = 60;       //%, уровень влажность для вкл/выкл
+  byte water_per_sec = 50;      //мл/с, = 3 л/мин прокачивает 5В помпа
 };
 Pump pumps[PUMP_QUAN];
 
@@ -62,7 +63,6 @@ byte read_hmdt(int x) {
   int res = x * (-0.257) + 163.452; //kx+b, где k=-0.257 b=163.452  (эксперементально 246=100% 636=0%)
   return (res > 100) ? 100 : (res < 0) ? 0 : res;
 }
-
 
 
 void setup() {
@@ -90,104 +90,14 @@ void setup() {
 
 void loop() {
 
-  //обойдем помпы (точнее показания с датчиков)
-  for (byte i = 0; i < PUMP_QUAN; i++) {
-    byte hmdt = read_hmdt(analogRead(pumps[i].sens_pin));
+  HandlerSensPumps();
 
-    if (pumps[i].is_active) {
-      if (abs(millis() - pumps[i].start_pumping) > time_pumping) {
-        pumps[i].start_pumping = millis();
-        pumps[i].is_active = false;
-        digitalWrite(pumps[i].pin, !SWITCH_LEVEL);
-        Serial.print("выкл -- ");
-      }
-    }
-
-    if ((hmdt < pumps[i].hmdt_trigger) & (!pumps[i].is_active)) {
-      if (abs(millis() - pumps[i].start_pumping) > to_wait_flow_water) {
-        pumps[i].start_pumping = millis();
-        pumps[i].is_active = true;
-        digitalWrite(pumps[i].pin, SWITCH_LEVEL);
-        Serial.print("вкл -- ");
-      }
-    }
-
-    Serial.print(analogRead(pumps[i].sens_pin));
-    Serial.print(" -- ");
-    Serial.print(hmdt);
-    Serial.print("% -- pupm [" + String(i) + "] is active?: ");
-    Serial.print(pumps[i].is_active);
-    Serial.print(" -- ");
-    Serial.print(pumps[i].start_pumping);
-    Serial.print(" -- " + String(millis()) + "ms");
-  }
-
-
-  //обработка данных с DHT (температура воздуха и влажность в боксе)
-  float h = dht.readHumidity();
-  bool high_hmdt = h > 70; // #TODO в константы уровни
-  bool low_hmdt = h < 50;
-  if (!high_hmdt & !low_hmdt){
-    //все норм
-  } else {
-    if (high_hmdt){
-      //включить винты на проветривание
-    }
-    if (low_hmdt){
-      //залить в бокс немного воды (прикинуть коэф. требуемого объема воды от дельты по влажности)
-      //ну и время на испарение
-    }
-  }
+  HandlerSensDHT();
   
-  float t = dht.readTemperature();
-  bool high_temp = t > (29.44 * 1.05);  // #TODO в константы уровни
-  bool low_temp = t < (29.44 * 0.95);
-  if (!high_temp & !low_temp){
-    //температура норм
-  } else {
-    if (high_temp){
-      //включить винты на проветривание
-    }
-    if (low_temp){
-      //максимально уменьшить приток воздуха
-      //включить grow_led - нагреемся от радиаторов
-    }
-  }
-
+  HandlerBtnModule();
   
-  //обработка кнопок
-  byte curr_btn = module.getButtons();
-  //вкл/выкл дисплея
-  if (curr_btn == mdl.btn8) {
-    disp_on = !disp_on;
-    module.setLED(!disp_on, mdl.led8);    //если дисплей выкл - то светодиод вкл
-  }
-  //изменение/выбор отображения на дисплее
-  if (curr_btn == mdl.btn1) {
-    module.setLED(0, disp_mode);
-    disp_mode = (++disp_mode > 1) ? 0 : disp_mode++;
-    module.setLED(1, disp_mode);
-  }
-
-  //обновление дисплея
-  if (abs(last_refresh_disp -  millis()) > time_refresh_disp * 1000) {
-    last_refresh_disp = millis() / 1000;
-    if (disp_on) {
-      if (disp_mode == 0) {
-        byte hmdt = read_hmdt(analogRead(pumps[disp_sens].sens_pin));
-        module.clearDisplay();
-        module.setDisplayToString("d" + String(disp_sens + 1) + "  " + String(hmdt));
-        disp_sens = (++disp_sens > sizeof(pumps) / sizeof(*pumps) - 1) ? 0 : disp_sens++;
-      }
-      if (disp_mode == 1) {
-        // DHT датчик сюда припилить
-      }
-    } else {
-      module.clearDisplay();
-    }
-  }
+  UpdateDisplay();  
 
   Serial.println(" ");
-
   delay(500);
 }
