@@ -1,5 +1,12 @@
+//init led&key module
 #include <TM1638.h>
 TM1638 module(2, 3, 4);     //(dio, clk, stb) pins
+
+//init DHT sensor
+#include <DHT.h>
+#define DHTPIN 20
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321    DHT 21 (AM2301)
+DHT dht(DHTPIN, DHTTYPE);
 
 //подразумевается, что датчики стоят параллельно помпам
 //чтобы каждая помпа имела свою обратную связь(ОС)
@@ -61,19 +68,22 @@ byte read_hmdt(int x) {
 void setup() {
   Serial.begin(9600);
 
-  //init помп
+  //set помп
   for (byte i = 0; i < PUMP_QUAN; i++) {
     pumps[i].pin = PUMP_PIN + i;
     pinMode(pumps[i].pin, OUTPUT);
     digitalWrite(pumps[i].pin, !SWITCH_LEVEL);    //от греха выключим
   }
 
-  //init датчиков
+  //set датчиков
   for (byte i = 0; i < SENSOR_HMDT_QUAN; i++) {
     pumps[i].sens_pin = SENSOR_HMDT_PIN + i;
     pinMode(pumps[i].sens_pin, INPUT);
   }
 
+  //set датчика влажности и температуры
+  dht.begin();
+  
   module.clearDisplay();
   module.setLED(1, disp_mode);
 }
@@ -112,6 +122,39 @@ void loop() {
     Serial.print(" -- " + String(millis()) + "ms");
   }
 
+
+  //обработка данных с DHT (температура воздуха и влажность в боксе)
+  float h = dht.readHumidity();
+  bool high_hmdt = h > 70; // #TODO в константы уровни
+  bool low_hmdt = h < 50;
+  if (!high_hmdt & !low_hmdt){
+    //все норм
+  } else {
+    if (high_hmdt){
+      //включить винты на проветривание
+    }
+    if (low_hmdt){
+      //залить в бокс немного воды (прикинуть коэф. требуемого объема воды от дельты по влажности)
+      //ну и время на испарение
+    }
+  }
+  
+  float t = dht.readTemperature();
+  bool high_temp = t > (29.44 * 1.05);  // #TODO в константы уровни
+  bool low_temp = t < (29.44 * 0.95);
+  if (!high_temp & !low_temp){
+    //температура норм
+  } else {
+    if (high_temp){
+      //включить винты на проветривание
+    }
+    if (low_temp){
+      //максимально уменьшить приток воздуха
+      //включить grow_led - нагреемся от радиаторов
+    }
+  }
+
+  
   //обработка кнопок
   byte curr_btn = module.getButtons();
   //вкл/выкл дисплея
@@ -137,7 +180,7 @@ void loop() {
         disp_sens = (++disp_sens > sizeof(pumps) / sizeof(*pumps) - 1) ? 0 : disp_sens++;
       }
       if (disp_mode == 1) {
-
+        // DHT датчик сюда припилить
       }
     } else {
       module.clearDisplay();
