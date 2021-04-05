@@ -2,8 +2,8 @@ void HandlerSensDHT() {
   
   //обработка данных с DHT (температура воздуха и влажность в боксе)
   float h = dht.readHumidity();
-  bool high_hmdt = h > 70; // #TODO в константы уровни
-  bool low_hmdt = h < 50;
+  bool high_hmdt = h > dht_hmdt_h;
+  bool low_hmdt = h < dht_hmdt_l;
   if (!high_hmdt & !low_hmdt){
     module.setLED(0, mdl.led6);
     //все норм
@@ -19,8 +19,8 @@ void HandlerSensDHT() {
   }
   
   float t = dht.readTemperature();
-  bool high_temp = t > (29.44 * 1.05);  // #TODO в константы уровни
-  bool low_temp = t < (29.44 * 0.95);
+  bool high_temp = t > (dht_temp * 1.05);
+  bool low_temp = t < (dht_temp * 0.95);
   if (!high_temp & !low_temp){
     module.setLED(0, mdl.led7);
     //температура норм
@@ -34,5 +34,10 @@ void HandlerSensDHT() {
       //включить grow_led - нагреемся от радиаторов
     }
   }
+  Serial.print(F("-- Humidity: "));
+  Serial.print(h);
+  Serial.print(F("%  Temperature: "));
+  Serial.print(t);
+  Serial.println(F("°C "));
   
 }

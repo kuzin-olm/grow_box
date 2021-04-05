@@ -3,8 +3,8 @@
 TM1638 module(2, 3, 4);     //(dio, clk, stb) pins
 
 //init DHT sensor
-#include <DHT.h>
-#define DHTPIN 20
+#include <DHT.h>        //требует либ <Adafruit_Sensor.h>
+#define DHTPIN 22
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321    DHT 21 (AM2301)
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -44,19 +44,23 @@ struct Pump {
   bool is_active = false;       //текущее состояние
   long start_pumping = 0;       //ms, последнее включение
   byte hmdt_trigger = 60;       //%, уровень влажность для вкл/выкл
-  byte water_per_sec = 50;      //мл/с, = 3 л/мин прокачивает 5В помпа
+//  byte water_per_sec = 50;      //мл/с, = 3 л/мин прокачивает 5В помпа
 };
 Pump pumps[PUMP_QUAN];
 
 
-unsigned int time_pumping = 2 * 1000;           //ms, время работы помпы
-unsigned int to_wait_flow_water = 10 * 1000;    //ms, ожидание текучести воды в горшках
+const unsigned int time_pumping = 2 * 1000;            //ms, время работы помпы
+const unsigned int to_wait_flow_water = 10 * 1000;     //ms, опрос после пролива (ожидание текучести воды)
+const byte time_refresh_disp = 2;                      //sec, промежуток времени, через который обновляеся дисплей
+const byte dht_hmdt_h = 70;                            //%, влжст в теплице, верх порог
+const byte dht_hmdt_l = 50;                            //%, влжст в теплице, низ порог
+const float dht_temp = 29.44;                          //t°C, шикарная тмпртра для теплицы    (t°F-32)*5/9=t°C (85°F)
 
-byte time_refresh_disp = 2;   //sec, обновление дисплея через...
-long last_refresh_disp = 0;   //sec, последнее обновление
-bool disp_on = true;
-byte disp_mode = 0;
-byte disp_sens = 0;
+byte last_refresh_disp = 0;        //sec, последнее обновление дисплея
+byte disp_sens = 0;                //счетчик датчиков для обновления дисплея
+bool disp_on = true;               //вкл/выкл дисплея
+byte disp_mode = 0;                //выбор экранчика отображения
+
 
 //преобразование аналоговой величины с емкостного датчика влажности (sens v1.2) в % влажности
 byte read_hmdt(int x) {
@@ -67,6 +71,9 @@ byte read_hmdt(int x) {
 
 void setup() {
   Serial.begin(9600);
+
+  module.setDisplayToString("RUN  SET");
+  delay(1000);
 
   //set помп
   for (byte i = 0; i < PUMP_QUAN; i++) {

@@ -10,7 +10,7 @@ void HandlerBtnModule() {
   //изменение/выбор отображения на дисплее
   if (curr_btn == mdl.btn1) {
     module.setLED(0, disp_mode);
-    disp_mode = (++disp_mode > 1) ? 0 : disp_mode++;
+    disp_mode = (++disp_mode > 2) ? 0 : disp_mode++;
     module.setLED(1, disp_mode);
   }
   

@@ -1,4 +1,11 @@
-# grow box arduino
+# grow box 
+
+для макета теплицы:
+- полив горшков в зависимости от влажности почвы
+- поддержание требуемых влажности воздуха и температуры
+- TODO контроль освещенности (либо по датчику, либо от модуля реального времени)
+
+## arduino
 
 - <a href="https://a.aliexpress.com/_AanRRW">ATmega2560 + ESP8266</a>
 - <a href="https://a.aliexpress.com/_AkAfRm">TM1638 led&key</a>
