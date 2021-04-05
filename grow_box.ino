@@ -16,6 +16,14 @@ DHT dht(DHTPIN, DHTTYPE);
 
 #define SENSOR_HMDT_PIN 0   //Dry: [520 430] Wet: [430 350] Water: [350 260] (sens v1.0)
 #define SENSOR_HMDT_QUAN PUMP_QUAN
+
+//свет и вентилятор
+#define FUN_PIN 43          //управление реле вентилятора
+#define GROW_LIGHT_PIN 44   //управление реле света
+                            //т.к. led AC 220V и утановленны на радиатор, то можно использовать для нагрева
+                            //также реле должно быть опторазвязано (от греха :) )
+#define HMDT_PUMP_PIN 45    //помпа для поддержания влаги в боксе
+#define RELAY_ON 1          //уровень управления реле (если один тип реле, то можно поставить равным SWITCH_LEVEL)
 //----------------------------------------------------------------------------------------------
 
 struct {
@@ -38,16 +46,17 @@ struct {
   byte led8 = 7;
 } mdl;  //адреса кнопок и светодиодов
 
+//дефолтные настройки для помп, чтобы потом можно было отдельно для разных горшков настраивать
 struct Pump {
   byte pin;                     //пин, на котором помпа
   byte sens_pin;                //пин, на котором датчик (ОС от помпы)
   bool is_active = false;       //текущее состояние
   long start_pumping = 0;       //ms, последнее включение
   byte hmdt_trigger = 60;       //%, уровень влажность для вкл/выкл
-//  byte water_per_sec = 50;      //мл/с, = 3 л/мин прокачивает 5В помпа
+  //  byte water_per_sec = 50;      //мл/с, = 3 л/мин прокачивает 5В помпа
 };
 Pump pumps[PUMP_QUAN];
-
+Pump pump_box;
 
 const unsigned int time_pumping = 2 * 1000;            //ms, время работы помпы
 const unsigned int to_wait_flow_water = 10 * 1000;     //ms, опрос после пролива (ожидание текучести воды)
@@ -67,6 +76,11 @@ byte read_hmdt(int x) {
   int res = x * (-0.257) + 163.452; //kx+b, где k=-0.257 b=163.452  (эксперементально 246=100% 636=0%)
   return (res > 100) ? 100 : (res < 0) ? 0 : res;
 }
+
+//long getSecToPumpingBox(float hmdt) {
+//  float diff = dht_hmdt_h - hmdt;
+//  return;
+//}
 
 
 void setup() {
@@ -90,7 +104,19 @@ void setup() {
 
   //set датчика влажности и температуры
   dht.begin();
+
+  //set свет,кулер,помпа - OFF
+  pinMode(FUN_PIN, OUTPUT);
+  digitalWrite(FUN_PIN, !RELAY_ON);
   
+  pinMode(GROW_LIGHT_PIN, OUTPUT);
+  digitalWrite(GROW_LIGHT_PIN, !RELAY_ON);
+  
+  pump_box.pin = HMDT_PUMP_PIN;
+  pinMode(pump_box.pin, OUTPUT);
+  digitalWrite(pump_box.pin, !RELAY_ON);
+
+
   module.clearDisplay();
   module.setLED(1, disp_mode);
 }
@@ -100,10 +126,10 @@ void loop() {
   HandlerSensPumps();
 
   HandlerSensDHT();
-  
+
   HandlerBtnModule();
-  
-  UpdateDisplay();  
+
+  UpdateDisplay();
 
   Serial.println(" ");
   delay(500);
