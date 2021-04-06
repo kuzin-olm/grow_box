@@ -2,6 +2,8 @@ void HandlerSensDHT() {
   
   //обработка данных с DHT (температура воздуха и влажность в боксе)
   float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
   bool high_hmdt = h > dht_hmdt_h;
   bool low_hmdt = h < dht_hmdt_l;
   if (!high_hmdt & !low_hmdt){
@@ -13,12 +15,15 @@ void HandlerSensDHT() {
       //включить винты на проветривание
     }
     if (low_hmdt){
-      //залить в бокс немного воды (прикинуть коэф. требуемого объема воды от дельты по влажности)
+      //залить в бокс немного воды (через Клапейрона-Менделеева)
+      float m = getMassWater(t, h, 1);    // 1 - объем бокса #TODO переделать в константы по x*y*z
+      Serial.print(F("-- масса m [г]: "));
+      Serial.print(m);
       //ну и время на испарение
     }
   }
   
-  float t = dht.readTemperature();
+  
   bool high_temp = t > (dht_temp * 1.05);
   bool low_temp = t < (dht_temp * 0.95);
   if (!high_temp & !low_temp){
