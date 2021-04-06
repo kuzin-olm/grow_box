@@ -19,7 +19,14 @@ void HandlerSensDHT() {
       float m = getMassWater(t, h, 1);    // 1 - объем бокса #TODO переделать в константы по x*y*z
       Serial.print(F("-- масса m [г]: "));
       Serial.print(m);
-      //ну и время на испарение
+      //скорость испарения в боксе
+      float w = getEvaporationRateOfWater(t, h, 0.4); // 0,4 - площадь испарения #TODO переделать в константы по x*y
+      Serial.print(F("-- испарение [г/ч]: "));
+      Serial.print(w);
+
+      long to_wait_flow_water_box = m/w * 3600 * 1000; //ms, ожидание повышения влаги
+      Serial.print(F("-- испарится через [мс]: "));
+      Serial.print(to_wait_flow_water_box);
     }
   }
   
