@@ -24,7 +24,7 @@ DHT dht(DHTPIN, DHTTYPE);
 #define GROW_LIGHT_PIN 44   //управление реле света
                             //т.к. led AC 220V и утановленны на радиатор, то можно использовать для нагрева
                             //также реле должно быть опторазвязано (от греха :) )
-#define HMDT_PUMP_PIN 45    //помпа для поддержания влаги в боксе
+#define HMDT_PUMP_PIN 43    //помпа для поддержания влаги в боксе
 #define RELAY_ON 1          //уровень управления реле (если один тип реле, то можно поставить равным SWITCH_LEVEL)
 //----------------------------------------------------------------------------------------------
 
@@ -50,24 +50,25 @@ struct {
 
 //дефолтные настройки для помп, чтобы потом можно было отдельно для разных горшков настраивать
 struct Pump {
-  byte pin;                     //пин, на котором помпа
-  byte sens_pin;                //пин, на котором датчик (ОС от помпы)
-  bool is_active = false;       //текущее состояние
-  long start_pumping = 0;       //ms, последнее включение
-  byte hmdt_trigger = 60;       //%, уровень влажность для вкл/выкл
-  //  byte water_per_sec = 50;      //мл/с, = 3 л/мин прокачивает 5В помпа
+  byte pin;                               //пин, на котором помпа
+  byte sens_pin;                          //пин, на котором датчик (ОС от помпы)
+  bool is_active = false;                 //текущее состояние
+  long start_pumping = 0;                 //ms, последнее включение
+  byte hmdt_trigger = 60;                 //%, уровень влажность для вкл/выкл
+  byte water_per_sec = 50;                //мл/с, = 3 л/мин прокачивает 5В помпа
+  unsigned int time_pumping = 2 * 1000;   //ms, время работы помпы
 };
 Pump pumps[PUMP_QUAN];
-Pump pump_box;
 
-const unsigned int time_pumping = 2 * 1000;            //ms, время работы помпы
+
 const unsigned int to_wait_flow_water = 10 * 1000;     //ms, опрос после пролива (ожидание текучести воды)
 const byte time_refresh_disp = 2;                      //sec, промежуток времени, через который обновляеся дисплей
 const byte dht_hmdt_h = 70;                            //%, влжст в теплице, верх порог
 const byte dht_hmdt_l = 50;                            //%, влжст в теплице, низ порог
 const float dht_temp = 29.44;                          //t°C, шикарная тмпртра для теплицы    (t°F-32)*5/9=t°C (85°F)
 
-long to_wait_flow_water_box = 0;   //ms, ...
+Pump pump_box;                     //помпа в боксе
+long to_wait_flow_water_box = 0;   //ms, ожидание повышения влаги в боксе
 
 byte last_refresh_disp = 0;        //sec, последнее обновление дисплея
 byte disp_sens = 0;                //счетчик датчиков для обновления дисплея

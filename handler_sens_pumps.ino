@@ -5,7 +5,7 @@ void HandlerSensPumps() {
     byte hmdt = read_hmdt(analogRead(pumps[i].sens_pin));
 
     if (pumps[i].is_active) {
-      if (abs(millis() - pumps[i].start_pumping) > time_pumping) {
+      if (abs(millis() - pumps[i].start_pumping) > pumps[i].time_pumping) {
         pumps[i].start_pumping = millis();
         pumps[i].is_active = false;
         digitalWrite(pumps[i].pin, !SWITCH_LEVEL);
