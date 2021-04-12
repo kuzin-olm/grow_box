@@ -20,7 +20,7 @@ DHT dht(DHTPIN, DHTTYPE);
 #define SENSOR_HMDT_QUAN PUMP_QUAN
 
 //свет и вентилятор
-#define FUN_PIN 43          //управление реле вентилятора
+#define FUN_PIN 42          //управление реле вентилятора
 #define GROW_LIGHT_PIN 44   //управление реле света
                             //т.к. led AC 220V и утановленны на радиатор, то можно использовать для нагрева
                             //также реле должно быть опторазвязано (от греха :) )
@@ -50,6 +50,7 @@ struct {
 
 //дефолтные настройки для помп, чтобы потом можно было отдельно для разных горшков настраивать
 struct Pump {
+  public:
   byte pin;                               //пин, на котором помпа
   byte sens_pin;                          //пин, на котором датчик (ОС от помпы)
   bool is_active = false;                 //текущее состояние
@@ -57,6 +58,10 @@ struct Pump {
   byte hmdt_trigger = 60;                 //%, уровень влажность для вкл/выкл
   byte water_per_sec = 50;                //мл/с, = 3 л/мин прокачивает 5В помпа
   unsigned int time_pumping = 2 * 1000;   //ms, время работы помпы
+
+  Pump(){}
+  Pump(byte pin){ this->pin = pin; }
+  Pump(byte pin, byte sens_pin){ this->pin = pin; this->sens_pin = sens_pin; }
 };
 Pump pumps[PUMP_QUAN];
 
@@ -67,7 +72,7 @@ const byte dht_hmdt_h = 70;                            //%, влжст в теп
 const byte dht_hmdt_l = 50;                            //%, влжст в теплице, низ порог
 const float dht_temp = 29.44;                          //t°C, шикарная тмпртра для теплицы    (t°F-32)*5/9=t°C (85°F)
 
-Pump pump_box;                     //помпа в боксе
+Pump pump_box(HMDT_PUMP_PIN);                     //помпа в боксе
 long to_wait_flow_water_box = 0;   //ms, ожидание повышения влаги в боксе
 
 byte last_refresh_disp = 0;        //sec, последнее обновление дисплея
@@ -169,7 +174,7 @@ void setup() {
   pinMode(GROW_LIGHT_PIN, OUTPUT);
   digitalWrite(GROW_LIGHT_PIN, !RELAY_ON);
   
-  pump_box.pin = HMDT_PUMP_PIN;
+//  pump_box.pin = HMDT_PUMP_PIN;
   pinMode(pump_box.pin, OUTPUT);
   digitalWrite(pump_box.pin, !RELAY_ON);
 
